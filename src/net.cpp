@@ -3,18 +3,77 @@
 #include <emojicode/runtime/Runtime.h>
 #include <emojicode/s/String.h>
 #include <httplib.h>
-#include <cstring>
+#include <string>
+#include <iostream>
+#include <uWS/uWS.h>
 
-class HTTP {};
+// WEBSOCKET
 
-extern "C" s::String* get(s::String* host, s::String* path, runtime::Integer* port) {
-    httplib::Client cli(host->cString(), *port);
-    auto res = cli.Get(path->cString());
-    if(res && res->status == 200) {
-        auto str = res->body.c_str();
-        return s::String::init(str);
+class WSC : public runtime::Object<WSC> {
+    public:
+        WSC(std::string url);
+        std::string url;
+};
+
+WSC::WSC(std::string url) : url(url) {}
+
+// HTTPS
+
+class HTTP : public runtime::Object<HTTP> {
+    public:
+        HTTP(const char* host, int port);
+        httplib::Headers convert_headers();
+
+        httplib::SSLClient client;
+        std::vector<std::pair<std::string, std::string>> headers;
+};
+
+
+HTTP::HTTP(const char* host, int port) : client(host, port) {}
+
+httplib::Headers HTTP::convert_headers() {
+    httplib::Headers hea;
+
+    for(std::vector<std::pair<std::string, std::string>>::iterator it = headers.begin(); it != headers.end(); ++it) {
+        hea.insert(*it);
     }
-    return s::String::init("");
+
+    return hea;
+}
+
+extern "C" HTTP* new_client(s::String *host, runtime::Integer port) {
+    return HTTP::init(host->stdString().c_str(), port);
+}
+
+extern "C" s::String* get(HTTP *http, s::String *path) {
+    auto headers = http->convert_headers();
+    auto res = http->client.Get(path->stdString().c_str(), headers);
+
+    if(res && res->status == 200) {
+        return s::String::init(res->body.c_str());
+    } else {
+        return s::String::init(" ");
+    }
+}
+
+extern "C" s::String* post(HTTP *http, s::String *path, s::String *content_type, s::String *data) {
+    auto headers = http->convert_headers();
+    auto res = http->client.Post(path->stdString().c_str(), headers,
+        data->stdString().c_str(),
+        content_type->stdString().c_str());
+    if(res && res->status == 200) {
+        return s::String::init(res->body.c_str());
+    } else {
+        std::cout << res->status << std::endl;
+        std::cout << res->body << std::endl;
+        return s::String::init(" ");
+    }
+}
+
+extern "C" void add_header(HTTP *http, s::String *name, s::String *content) {
+    http->headers.push_back(std::make_pair(name->stdString(), 
+        content->stdString()));
 }
 
 SET_INFO_FOR(HTTP, net, 1f351)
+SET_INFO_FOR(WSC, net, 1f50c)
