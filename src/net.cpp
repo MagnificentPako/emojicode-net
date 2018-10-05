@@ -14,7 +14,7 @@ class HServer : public runtime::Object<HServer> {
         httplib::Server srv;
 };
 
-HServer::HServer() {}
+HServer::HServer() : srv() {}
 
 extern "C" void srvGet(HServer *server, s::String *path, runtime::Callable<s::String*> callback) {
     server->srv.Get(path->stdString().c_str(), [callback](const httplib::Request& req, httplib::Response& res) {
