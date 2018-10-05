@@ -8,8 +8,6 @@ stdenv.mkDerivation {
                     gcc 
                     ninja
                     openssl
-                    (import "/home/paul/doc/dev/Cpp/uWebSockets")
-                    zlib
                   ];
     doCheck = false;
 }

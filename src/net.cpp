@@ -5,19 +5,29 @@
 #include <httplib.h>
 #include <string>
 #include <iostream>
-#include <uWS/uWS.h>
 
-// WEBSOCKET
-
-class WSC : public runtime::Object<WSC> {
+// HTTP SERVER
+class HServer : public runtime::Object<HServer> {
     public:
-        WSC(std::string url);
-        std::string url;
+        HServer();
+
+        httplib::Server srv;
 };
 
-WSC::WSC(std::string url) : url(url) {}
+HServer::HServer() {}
 
-// HTTPS
+extern "C" void srvGet(HServer *server, s::String *path, runtime::Callable<s::String*> callback) {
+    server->srv.Get(path->stdString().c_str(), [callback](const httplib::Request& req, httplib::Response& res) {
+        s::String *result = callback();
+        res.set_content(result->stdString().c_str(), "text/plain");
+    });
+}
+
+extern "C" void srvStart(HServer *server, s::String *host, runtime::Integer port) {
+    server->srv.listen(host->stdString().c_str(), port);
+}
+
+// HTTPS CLIENT
 
 class HTTP : public runtime::Object<HTTP> {
     public:
@@ -76,4 +86,4 @@ extern "C" void add_header(HTTP *http, s::String *name, s::String *content) {
 }
 
 SET_INFO_FOR(HTTP, net, 1f351)
-SET_INFO_FOR(WSC, net, 1f50c)
+SET_INFO_FOR(HServer, net, 1f454)
