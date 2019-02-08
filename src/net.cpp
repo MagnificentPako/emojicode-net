@@ -5,38 +5,53 @@
 #include <httplib.h>
 #include <string>
 #include <iostream>
+#include <easywsclient.hpp>
+#include <easywsclient.cpp>
+#include <assert.h>
+#include <regex>
+#include "net.hpp"
 
-// HTTP SERVER
-class HServer : public runtime::Object<HServer> {
-    public:
-        HServer();
-
-        httplib::Server srv;
-};
-
-extern "C" void srvGet(HServer *server, s::String *path, runtime::Callable<s::String*> callback) {
-    callback.retain();
-    server->srv.Get(path->stdString().c_str(), [callback](const httplib::Request& req, httplib::Response& res) {
-        s::String *result = callback();
-        res.set_content(result->stdString().c_str(), "text/plain");
-    });
+// REGEX
+extern "C" runtime::SimpleOptional<s::String*> netRegex(s::String *str, s::String *pattern, runtime::Integer index) {
+    std::regex r(pattern->stdString());
+    std::smatch result;
+    std::string s(str->stdString());
+    std::regex_search(s, result, r);
+    if(result[index].str().length()>0) {
+        return s::String::init(result[index].str().c_str());
+    }
+    return runtime::NoValue;
 }
 
-extern "C" void srvStart(HServer *server, s::String *host, runtime::Integer port) {
-    server->srv.listen(host->stdString().c_str(), port);
+// WS CLIENT
+
+WSClient::WSClient(std::string uri_) : uri{uri_} {
+    using easywsclient::WebSocket;
+    ws = WebSocket::from_url(uri);
+    assert(ws);
+}
+
+extern "C" WSClient* new_ws_client(s::String *uri) {
+    return WSClient::init(uri->stdString());
+}
+
+extern "C" void wsclient_run(WSClient *client, runtime::Callable<void, s::String*> callable) {
+    using easywsclient::WebSocket;
+    callable.retain();
+    while(client->ws->getReadyState() != WebSocket::CLOSED) {
+        client->ws->poll(1);
+        client->ws->dispatch([callable](const std::string & msg) {
+            callable(s::String::init(msg.c_str()));
+        });
+    }
+    delete client->ws;
+}
+
+extern "C" void wsclient_send(WSClient *client, s::String *msg) {
+    client->ws->send(msg->stdString().c_str());
 }
 
 // HTTPS CLIENT
-
-class HTTP : public runtime::Object<HTTP> {
-    public:
-        HTTP(const char* host, int port);
-        httplib::Headers convert_headers();
-
-        httplib::SSLClient client;
-        std::vector<std::pair<std::string, std::string>> headers;
-};
-
 
 HTTP::HTTP(const char* host, int port) : client(host, port) {}
 
@@ -85,4 +100,4 @@ extern "C" void add_header(HTTP *http, s::String *name, s::String *content) {
 }
 
 SET_INFO_FOR(HTTP, net, 1f351)
-SET_INFO_FOR(HServer, net, 1f454)
+SET_INFO_FOR(WSClient, net, 1f981) // lion

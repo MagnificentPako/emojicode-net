@@ -8,6 +8,7 @@ stdenv.mkDerivation {
                     gcc 
                     ninja
                     openssl
+                    mbedtls
                   ];
     doCheck = false;
 }
