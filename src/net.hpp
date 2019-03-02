@@ -14,3 +14,9 @@ class HTTP : public runtime::Object<HTTP> {
         httplib::SSLClient client;
         std::vector<std::pair<std::string, std::string>> headers;
 }; 
+
+class Json : public runtime::Object<Json> {
+    public:
+        Json(json j_);
+        json j;
+};

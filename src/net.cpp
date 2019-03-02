@@ -9,7 +9,46 @@
 #include <easywsclient.cpp>
 #include <assert.h>
 #include <regex>
+#include <json.hpp>
+
+using json = nlohmann::json;
+
 #include "net.hpp"
+
+// JSON
+
+Json::Json(json j_) {
+    j = j_;
+}
+
+extern "C" Json* new_json(s::String *input) {
+    return Json::init(json::parse(input->stdString().c_str()));
+}
+
+extern "C" s::String* netJsonString(Json *js, s::String *name) {
+    if(js->j.at(name->stdString()).is_string()) {
+        return s::String::init(js->j.at(name->stdString()).get<std::string>().c_str());
+    }
+    return s::String::init("");
+}
+
+extern "C" runtime::Integer netJsonInt(Json *js, s::String *name) {
+    if(js->j.at(name->stdString()).is_number_integer()) {
+        return js->j.at(name->stdString()).get<runtime::Integer>();
+    }
+    return 0;
+}
+
+extern "C" Json* netJsonObject(Json *js, s::String *name) {
+    if(js->j.at(name->stdString()).is_object()) {
+        return Json::init(js->j.at(name->stdString()).get<json::object_t>());
+    }
+    return Json::init(json::object());
+}
+
+extern "C" s::String* netJsonDump(Json *js) {
+    return s::String::init(js->j.dump().c_str());
+}
 
 // REGEX
 extern "C" runtime::SimpleOptional<s::String*> netRegex(s::String *str, s::String *pattern, runtime::Integer index) {
@@ -101,3 +140,4 @@ extern "C" void add_header(HTTP *http, s::String *name, s::String *content) {
 
 SET_INFO_FOR(HTTP, net, 1f351)
 SET_INFO_FOR(WSClient, net, 1f981) // lion
+SET_INFO_FOR(Json, net, 1f335)
